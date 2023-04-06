@@ -1,0 +1,298 @@
+/*
+EEL 4742C - UCF
+
+Code that prints a welcome message to the pixel display.
+*/
+
+#include "msp430fr6989.h"
+#include "Grlib/grlib/grlib.h"          // Graphics library (grlib)
+#include "LcdDriver/lcd_driver.h"       // LCD driver
+#include <stdio.h>
+
+#define S1 BIT1
+#define S2 BIT2
+
+#define redLED BIT0
+#define greenLED BIT7
+#define BUT1 BIT1
+#define BUT2 BIT2
+
+#define FLAGS UCA1IFG
+#define RXFLAG UCRXIFG
+#define TXFLAG UCTXIFG
+#define TXBUFFER UCA1TXBUF
+#define RXBUFFER UCA1RXBUF
+
+#define RESULTREGISTER 0x00
+#define CONFIGREGISTER 0x01
+#define LOWLIMITREGISTER 0X02
+#define HIGHLIMITREGISTER 0X03
+
+#define LIGHTSENSORADDRESS 0x44
+#define RESULTADDRESS 0x00
+void Initialize_Clock_System();
+
+
+
+
+
+
+
+
+// *****************************
+void Initialize_Clock_System() {
+    // DCO frequency = 8 MHz (default value)
+    // MCLK = fDCO/2 = 4 MHz
+    // SMCLK = fDCO/1 = 8 MHz
+    CSCTL0 = CSKEY;                         // Unlock clock module config registers
+    CSCTL3 &= ~(BIT2|BIT1|BIT0);            // DIVM = 000
+    CSCTL3 |= BIT0;                         // DIVM = 001 = /2
+    CSCTL3 &= ~(BIT6|BIT5|BIT4);            // DIVS = 000 = /1
+    CSCTL0_H = 0;                           // Relock clock module config registers
+
+    return;
+}
+
+void Initialize_I2C(void)
+{
+    P4SEL1 |= (BIT1|BIT0);
+    P4SEL0 &= ~(BIT1|BIT0);
+
+    UCB1CTLW0 = UCSWRST;
+
+    UCB1CTLW0 |= UCMST| UCMODE_3 | UCSYNC | UCSSEL_3;
+
+    UCB1BRW = 25.6;
+    UCB1CTLW0 &= ~UCSWRST;
+}
+
+int i2c_read_word(unsigned char i2c_address, unsigned char i2c_reg, unsigned int* data)
+{
+    unsigned char byte1, byte2;
+    // Initialize the bytes to make sure data is received every time
+    byte1 = 111;
+    byte2 = 111;
+    //********** Write Frame #1 ***************************
+    UCB1I2CSA = i2c_address; // Set I2C address
+    UCB1IFG &= ~UCTXIFG0;
+    UCB1CTLW0 |= UCTR; // Master writes (R/W bit = Write)
+    UCB1CTLW0 |= UCTXSTT; // Initiate the Start Signal
+
+    while ((UCB1IFG & UCTXIFG0) ==0) {}
+    UCB1TXBUF = i2c_reg; // Byte = register address
+    while((UCB1CTLW0 & UCTXSTT)!=0) {}
+    if(( UCB1IFG & UCNACKIFG )!=0) return -1;
+    UCB1CTLW0 &= ~UCTR; // Master reads (R/W bit = Read)
+    UCB1CTLW0 |= UCTXSTT; // Initiate a repeated Start Signal
+    //****************************************************
+    //********** Read Frame #1 ***************************
+    while ( (UCB1IFG & UCRXIFG0) == 0) {}
+    byte1 = UCB1RXBUF;
+    //****************************************************
+    //********** Read Frame #2 ***************************
+    while((UCB1CTLW0 & UCTXSTT)!=0) {}
+    UCB1CTLW0 |= UCTXSTP; // Setup the Stop Signal
+    while ( (UCB1IFG & UCRXIFG0) == 0) {}
+    byte2 = UCB1RXBUF;
+    while ( (UCB1CTLW0 & UCTXSTP) != 0) {}
+    //****************************************************
+    // Merge the two received bytes
+    *data = ( (byte1 << 8) | (byte2 & 0xFF) );
+    return 0;
+
+}
+// Write a word (2 bytes) to I2C (address, register)
+int i2c_write_word(unsigned char i2c_address, unsigned char i2c_reg,
+unsigned int data) {
+unsigned char byte1, byte2;
+byte1 = (data >> 8) & 0xFF; // MSByte
+byte2 = data & 0xFF; // LSByte
+UCB1I2CSA = i2c_address; // Set I2C address
+UCB1CTLW0 |= UCTR; // Master writes (R/W bit = Write)
+UCB1CTLW0 |= UCTXSTT; // Initiate the Start Signal
+while ((UCB1IFG & UCTXIFG0) ==0) {}
+UCB1TXBUF = i2c_reg; // Byte = register address
+while((UCB1CTLW0 & UCTXSTT)!=0) {}
+// ---- ADD THIS LINE ----
+while ((UCB1IFG & UCTXIFG0) ==0) {}
+//********** Write Byte #1 ***************************
+UCB1TXBUF = byte1;
+while ( (UCB1IFG & UCTXIFG0) == 0) {}
+//********** Write Byte #2 ***************************
+UCB1TXBUF = byte2;
+while ( (UCB1IFG & UCTXIFG0) == 0) {}
+UCB1CTLW0 |= UCTXSTP;
+while ( (UCB1CTLW0 & UCTXSTP) != 0) {}
+return 0;
+}
+
+
+// Configures ACLK to 32 KHz crystal
+void config_ACLK_TO_32KHz_crystal(void) {
+   PJSEL1 &= ~BIT4;
+   PJSEL0 |= BIT4;
+
+   CSCTL0 =CSKEY;
+   do{
+       CSCTL5 &= ~LFXTOFFG;
+       SFRIFG1 &= ~OFIFG;
+   } while((CSCTL5 & LFXTOFFG) != 0);
+   CSCTL0_H = 0;
+   return;
+}
+
+
+
+int getPercent(int reading)
+{
+    int temp = 0;
+    reading = reading/10;
+    if (reading > 100)
+        return 100;
+    return reading;
+}
+
+
+Graphics_Rectangle Bar = {100,100,70,80};
+
+Graphics_Context g_sContext;
+
+void fillEmpty(int percentage)
+{
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
+    Bar.xMax = 114;
+    Bar.xMin = percentage + 14;
+    Graphics_fillRectangle(&g_sContext, &Bar);
+}
+
+void numToString(int percentage, char* retVal)
+{
+    if (percentage == 100)
+        retVal[0] = '1';
+    else
+        retVal[0] = ' ';
+
+    if (percentage >= 10)
+        retVal[1] = percentage/ 10 % 10 + '0';
+    else
+        retVal[1] = ' ';
+
+    retVal[2] = percentage % 10 + '0';
+
+}
+
+void printBar(int percentage)
+{
+
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+    Bar.xMin = 14;
+    Bar.xMax = percentage + 14;
+    Graphics_fillRectangle(&g_sContext, &Bar);
+    if (percentage != 100)
+        fillEmpty(percentage);
+    char toPrint[3];
+
+    numToString(percentage,toPrint);
+
+    Graphics_setBackgroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+
+    Graphics_drawStringCentered(&g_sContext, toPrint, AUTO_STRING_LENGTH, 64, 60, OPAQUE_TEXT);
+}
+
+int prevVal;
+int countFlg;
+int counter;
+// ****************************************************************************
+void main(void) {
+    prevVal = 0;
+    counter = 0;
+    countFlg = 0;
+    // Configure WDT & GPIO
+    WDTCTL = WDTPW | WDTHOLD;
+    PM5CTL0 &= ~LOCKLPM5;
+
+    Initialize_Clock_System();
+
+    //initUart();
+    Initialize_I2C();
+    config_ACLK_TO_32KHz_crystal();
+
+    // Configure LEDs
+    P1DIR |= redLED;                P9DIR |= greenLED;
+    P1OUT &= ~redLED;               P9OUT &= ~greenLED;
+
+    // Configure buttons
+    P1DIR &= ~(S1|S2);
+    P1REN |= (S1|S2);
+    P1OUT |= (S1|S2);
+    P1IFG &= ~(S1|S2);          // Flags are used for latched polling
+
+    // Set the LCD backlight to highest level
+    //P2DIR |= BIT6;
+    //P2OUT |= BIT6;
+
+
+    Crystalfontz128x128_Init();         // Initialize the display
+
+        // Set the screen orientation
+        Crystalfontz128x128_SetOrientation(0);
+
+        // Initialize the context
+        Graphics_initContext(&g_sContext, &g_sCrystalfontz128x128);
+
+        // Set background and foreground colors
+
+
+        // Set the default font for strings
+        GrContextFontSet(&g_sContext, &g_sFontFixed6x8);
+        //Graphics_clearDisplay(&g_sContext);
+
+    unsigned char i2c_address = LIGHTSENSORADDRESS;
+    unsigned char i2c_reg = CONFIGREGISTER;
+    unsigned int data = 0x7604;
+
+    i2c_write_word(i2c_address,i2c_reg,data);
+
+    i2c_reg = RESULTREGISTER;
+
+    TA0CTL |= TASSEL_1 | MC_1 | TACLR;
+    TA0CCR0 |= 16000;
+    TA0CCTL0 |= CCIE;
+
+    __enable_interrupt();
+
+    _low_power_mode_1();
+
+
+}
+
+
+#pragma vector=TIMER0_A0_VECTOR
+   __interrupt void Timer0_A0 (void) {
+       unsigned int data;
+       i2c_read_word(LIGHTSENSORADDRESS,RESULTREGISTER,&data);
+       data = data * 1.28;
+       int toPrint = getPercent(data);
+
+       printBar(toPrint);
+
+       if (data < (prevVal-20))
+       {
+           countFlg = 1;
+       }
+       if (data > (prevVal+20) && countFlg)
+       {
+           counter++;
+           countFlg = 0;
+       }
+       prevVal = data;
+       char temp[3];
+
+       numToString(counter-1,temp);
+       Graphics_drawStringCentered(&g_sContext, temp, 3, 10, 10, OPAQUE_TEXT);
+
+}
+
+
+
