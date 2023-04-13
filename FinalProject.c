@@ -8,7 +8,13 @@ Code that prints a welcome message to the pixel display.
 #include "Grlib/grlib/grlib.h"          // Graphics library (grlib)
 #include "LcdDriver/lcd_driver.h"       // LCD driver
 #include <stdio.h>
-extern Graphics_Image TinyDino8BPP_UNCOMP;;
+extern Graphics_Image TinyDino8BPP_UNCOMP;
+extern Graphics_Image Cactus;
+extern Graphics_Image Cloud;
+extern Graphics_Image CloudSmall;
+extern Graphics_Image DinoChar;
+extern Graphics_Image Ground;
+extern Graphics_Image GroundBump;
 
 #define S1 BIT1
 #define S2 BIT2
@@ -195,38 +201,166 @@ void config_ACLK_TO_32KHz_crystal(void) {
 
 
 
-int getPercent(int reading)
-{
-    int temp = 0;
-    reading = reading/10;
-    if (reading > 100)
-        return 100;
-    return reading;
-}
 
 
-Graphics_Rectangle Cactus = {120,100,128,128};
-Graphics_Rectangle Dino = {15,87,38,115}; // When xy of image is 10,80
 
 Graphics_Context g_sContext;
+Graphics_Context layerTwo;
+Graphics_Context clouds;
+
+Graphics_Rectangle DinoBox;
+Graphics_Rectangle CactusBox;
+
+int dinoX,dinoY,cactusX,cactusY;
+int imageYDino;
 
 int isJumping;
 
 int imageX;
 int imageY;
 
-int fallingFlg;
+int goingUp;
+int goingDown;
+
+int smallCloudX;
+int topSmallCloudX;
+
+int gameOverFlg;
+
+//63 is top
+
+void init()
+{
+
+
+    imageYDino = 100;
+    _delay_cycles(50000);
+    Graphics_clearDisplay(&g_sContext);
+    P1IFG &= ~(BUT1|BUT2);
+
+    smallCloudX = 128;
+    topSmallCloudX = 128;
+
+    dinoX = 34;
+    dinoY = imageYDino;
+
+    DinoBox.xMin = dinoX+2;
+    DinoBox.xMax = dinoX + 21;
+    DinoBox.yMin = dinoY;
+    DinoBox.yMax = dinoY + 20;
+
+    cactusX = 110;
+    cactusY = 100;
+
+    CactusBox.xMin = cactusX;
+    CactusBox.xMax = cactusX + 25;
+    CactusBox.yMin = cactusY+10;
+    CactusBox.yMax = cactusY + 20;
+
+
+
+    isJumping = 0;
+    imageX = 110;
+    imageY = 100;
+    goingUp = 0;
+    goingDown = 0;
+    gameOverFlg = 0;
+
+    Graphics_Rectangle wholeScreen = {0,0,128,128};
+    Graphics_Rectangle CloudScreen = {24,0,128,60};
+    Graphics_Rectangle cutScreen = {24,0,128,128};
+    Graphics_Rectangle cutOffRegion = {0,0,23,128};
+
+    Graphics_setClipRegion(&g_sContext, &wholeScreen);
+    Graphics_setForegroundColor(&g_sContext,GRAPHICS_COLOR_PURPLE);
+    Graphics_fillRectangle(&g_sContext,&cutOffRegion);
+
+
+
+    Graphics_setClipRegion(&g_sContext, &cutScreen);
+    Graphics_setClipRegion(&layerTwo, &cutScreen);
+    Graphics_setClipRegion(&clouds, &CloudScreen);
+
+
+    drawScreen();
+    TA0CTL |= TASSEL_1 | MC_1 | TACLR;
+
+    Graphics_setForegroundColor(&layerTwo,GRAPHICS_COLOR_PURPLE);
+
+
+
+
+}
+
+
+
+
+
+void updateHitboxes()
+{
+    DinoBox.xMin = dinoX+2;
+    DinoBox.xMax = dinoX + 21;
+    DinoBox.yMin = dinoY;
+    DinoBox.yMax = dinoY + 20;
+
+    CactusBox.xMin = cactusX;
+    CactusBox.xMax = cactusX + 25;
+    CactusBox.yMin = cactusY+5;
+    CactusBox.yMax = cactusY + 20;
+
+
+}
+
+
+
+void drawScreen()
+{
+    Graphics_drawImage(&clouds, &CloudSmall, smallCloudX, 40);
+    Graphics_drawImage(&clouds, &CloudSmall, topSmallCloudX, 0);
+
+    Graphics_setForegroundColor(&clouds, GRAPHICS_COLOR_BLACK);
+    Graphics_Rectangle clearBotCloud = {smallCloudX+22,45,smallCloudX+24,47};
+    Graphics_Rectangle clearTopCloud = {topSmallCloudX+22,5,topSmallCloudX+24,7};
+    Graphics_fillRectangle(&clouds,&clearBotCloud);
+    Graphics_fillRectangle(&clouds,&clearTopCloud);
+
+
+
+
+
+    Graphics_drawImage(&layerTwo,&GroundBump,0,119);
+    Graphics_drawImage(&g_sContext, &Cactus, imageX, 100);
+    Graphics_drawImage(&g_sContext, &DinoChar, 30, imageYDino);
+
+
+    Graphics_Rectangle clearBot = {32,imageYDino+23,44,imageYDino+29};
+    Graphics_Rectangle clearTop = {41,imageYDino-1,51,imageYDino-7};
+
+    if (isJumping)
+    {
+        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+        if (goingUp)
+            Graphics_fillRectangle(&g_sContext,&clearBot);
+        else if (goingDown)
+            Graphics_fillRectangle(&g_sContext,&clearTop);
+    }
+    else
+    {
+        Graphics_setForegroundColor(&g_sContext,GRAPHICS_COLOR_BLACK);
+        Graphics_Rectangle clearTop = {50,imageYDino,56,imageYDino-1};
+        Graphics_fillRectangle(&g_sContext,&clearTop);
+    }
+
+
+
+}
+
+
+
 
 // ****************************************************************************
 void main(void) {
 
-    //8.5 8.6 8.7
-
-
-    isJumping = 0;
-    imageX = 10;
-    imageY = 80;
-    fallingFlg = 0;
 
     // Configure WDT & GPIO
     WDTCTL = WDTPW | WDTHOLD;
@@ -267,6 +401,10 @@ void main(void) {
 
         // Initialize the context
         Graphics_initContext(&g_sContext, &g_sCrystalfontz128x128);
+        Graphics_initContext(&layerTwo, &g_sCrystalfontz128x128);
+        Graphics_initContext(&clouds, &g_sCrystalfontz128x128);
+
+
 
         // Set background and foreground colors
 
@@ -274,17 +412,13 @@ void main(void) {
         // Set the default font for strings
         GrContextFontSet(&g_sContext, &g_sFontFixed6x8);
 
-    TA0CTL |= TASSEL_1 | MC_1 | TACLR;
-    TA0CCR0 |= 1092;
+        Graphics_setBackgroundColor(&g_sContext,GRAPHICS_COLOR_BLACK);
 
-    Graphics_setBackgroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
-    Graphics_fillRectangle(&g_sContext, &Cactus);
+        //Graphics_setClipRegion(&g_sContext,&DinoBox);
 
+        TA0CCR0 |= 1092;
 
-    Graphics_drawImage(&g_sContext, &TinyDino8BPP_UNCOMP, imageX, imageY);
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_drawRectangle(&g_sContext, &Dino);
+    init();
 
 
     TA0CCTL0 |= CCIE;
@@ -297,117 +431,111 @@ void main(void) {
 
 void reset()
 {
-    Cactus.xMin = 120;
-    Cactus.yMin = 100;
-    Cactus.xMax = 128;
-    Cactus.yMax = 128;
 
     isJumping = 0;
     imageX = 10;
     imageY = 80;
-    fallingFlg = 0;
 
-    Dino.xMin = imageX + 5;
-    Dino.xMax = (imageX + 38) - 10;
-    Dino.yMin = imageY + 7;
-    Dino.yMax = imageY + 35;
 
     Graphics_clearDisplay(&g_sContext);
-    Graphics_setBackgroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
-    Graphics_fillRectangle(&g_sContext, &Cactus);
 
-
-    Graphics_drawImage(&g_sContext, &TinyDino8BPP_UNCOMP, 10, 80);
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_drawRectangle(&g_sContext, &Dino);
-    TA0CTL |= TASSEL_1 | MC_1 | TACLR;
 
 
 
 }
 
 
-void moveCactusBetter()
+
+void gameOver()
 {
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_Rectangle temp = {Cactus.xMax-2,Cactus.yMin, Cactus.xMax, Cactus.yMax};
+    TA0CTL = 0;
+    gameOverFlg = 1;
+}
+
+
+void moveScreen()
+{
+    //rightDinoX,rightDinoY,botDinoX,botDinoY,leftCactusX,leftCactusY,rightCactusX,rightCactusY,topCactusX,topCactusY;
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+    Graphics_Rectangle temp = {imageX+15,imageY, imageX+17, imageY+28};
+
     Graphics_fillRectangle(&g_sContext, &temp);
 
-    Cactus.xMin = Cactus.xMin - 2;
-    Cactus.xMax = Cactus.xMax - 2;
+    if (imageX > 6)
+        Graphics_setClipRegion(&layerTwo, &temp);
 
-    //This is for testing!
-    if (Cactus.xMin < 0 && Cactus.xMax < 0)
+
+
+    drawScreen();
+
+    imageX = imageX - 3;
+
+    smallCloudX = smallCloudX - 2;
+    topSmallCloudX = topSmallCloudX - 1;
+
+    if (topSmallCloudX < 0)
+        topSmallCloudX = 128;
+
+    if (smallCloudX < 0)
+        smallCloudX = 128;
+
+    if (imageX < 7)
     {
-        Cactus.xMin = Cactus.xMin + 128;
-        Cactus.xMax = Cactus.xMax + 128;
+        imageX = 128;
     }
 
-    //End Testing
+    cactusX = imageX-1;
+    updateHitboxes();
 
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
-    Graphics_fillRectangle(&g_sContext, &Cactus);
+    //Test
 
-    if (Graphics_isRectangleOverlap(&Cactus,&Dino))
+    if (Graphics_isRectangleOverlap(&CactusBox,&DinoBox))
     {
-        TA0CTL &= ~(TASSEL_1 | MC_1 | TACLR);
-        Graphics_drawStringCentered(&g_sContext, "Game Over", AUTO_STRING_LENGTH, 64, 60, OPAQUE_TEXT);
+        gameOver();
     }
+
 }
 
+int jumpingAnimation[] = {100,92,85,79,74,70,67,65,64,64,63,63,63,63,63,64,64,65,66,67,69,70,72,74,79,83,85,89,92,95,99,100};
+
+int jumpingIndex;
 
 
 void jumpDino()
 {
 
 
-    if (fallingFlg)
+    if (!isJumping)
     {
-        imageY = imageY + 2;
+        jumpingIndex = 0;
     }
-    else
-        imageY = imageY - 3;
+    imageYDino = jumpingAnimation[jumpingIndex++];
 
-    if (imageY < 30)
-        fallingFlg = 1;
-    if (imageY >= 80)
+    if (jumpingIndex >= 32)
     {
-        fallingFlg = 0;
         isJumping = 0;
+        jumpingIndex = 0;
     }
-    Dino.xMin = imageX + 5;
-    Dino.xMax = (imageX + 38) - 10;
-    Dino.yMin = imageY + 7;
-    Dino.yMax = imageY + 35;
+    if (jumpingIndex == 16)
+    {
+        goingUp = 0;
+        goingDown = 1;
+    }
 
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_drawImage(&g_sContext, &TinyDino8BPP_UNCOMP, imageX, imageY);
-    Graphics_drawRectangle(&g_sContext,&Dino);
+    if (imageYDino == 85)
+    {
+        Graphics_drawImage(&g_sContext, &GroundBump,0,119);
+    }
 
+    dinoY = imageYDino;
+    updateHitboxes();
 }
 
-void numToString(int num, char* retVal)
-{
-    retVal[3] = num%10;
-    num = num/10;
-    retVal[2] = num%10;
-    num = num/10;
-    retVal[1] = num%10;
-    num = num/10;
-    retVal[0] = num;
-
-
-}
 int x,y,z;
 void updateDisplay()
 {
 
-    char temp[4];
-
-    moveCactusBetter();
-
-
+    moveScreen();
 
     if (isJumping)
     {
@@ -432,22 +560,12 @@ void updateDisplay()
 
 __interrupt void resetButton(void)
 {
-
-    if ((P1IFG & BUT1) != 0)
-    {
-        reset();
-    }
+    if (gameOverFlg)
+        init();
     else
-    {
-        isJumping = 1;
-        P1OUT ^= redLED;
-    }
-    _delay_cycles(1000);
-
-
-    P1IFG &= ~(BUT1|BUT2);
-
+        P1IFG &= ~(BUT1|BUT2);
 }
+
 
 #pragma vector = ADC12_VECTOR
 
@@ -457,6 +575,7 @@ __interrupt void doSomething(void)
     if (z > 3100 || z < 2600)
     {
         isJumping = 1;
+        goingUp = 1;
         ADC12IER0 &= ~ADC12IE0;
     }
 

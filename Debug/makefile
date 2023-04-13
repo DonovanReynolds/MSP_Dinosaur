@@ -8,7 +8,13 @@ GEN_OPTS__FLAG :=
 GEN_CMDS__FLAG := 
 
 ORDERED_OBJS += \
+"./Cactus.obj" \
+"./Cloud.obj" \
+"./CloudSmall.obj" \
+"./DinoChar.obj" \
 "./FinalProject.obj" \
+"./Ground.obj" \
+"./GroundBump.obj" \
 "./TinyDino.obj" \
 "./Grlib/fonts/fontClean5x8.obj" \
 "./Grlib/fonts/fontClean7x10.obj" \
@@ -175,8 +181,8 @@ EEL4742C-LAB-Pixel-Display.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)
-	-$(RM) "FinalProject.obj" "TinyDino.obj" "Grlib/fonts/fontClean5x8.obj" "Grlib/fonts/fontClean7x10.obj" "Grlib/fonts/fontCourier7x13.obj" "Grlib/fonts/fontCourier7x13b.obj" "Grlib/fonts/fontFixed7x13.obj" "Grlib/fonts/fontLucidabright6x12.obj" "Grlib/fonts/fontLucidasans6x11.obj" "Grlib/fonts/fontLucidasans8x15.obj" "Grlib/fonts/fontcm12.obj" "Grlib/fonts/fontcm12b.obj" "Grlib/fonts/fontcm16.obj" "Grlib/fonts/fontcmss12.obj" "Grlib/fonts/fontcmtt12.obj" "Grlib/fonts/fontfixed6x8.obj" "Grlib/grlib/button.obj" "Grlib/grlib/checkbox.obj" "Grlib/grlib/circle.obj" "Grlib/grlib/context.obj" "Grlib/grlib/display.obj" "Grlib/grlib/image.obj" "Grlib/grlib/imageButton.obj" "Grlib/grlib/line.obj" "Grlib/grlib/radioButton.obj" "Grlib/grlib/rectangle.obj" "Grlib/grlib/string.obj" "LcdDriver/lcd_driver.obj" "LcdDriver/lower_driver.obj" 
-	-$(RM) "FinalProject.d" "TinyDino.d" "Grlib/fonts/fontClean5x8.d" "Grlib/fonts/fontClean7x10.d" "Grlib/fonts/fontCourier7x13.d" "Grlib/fonts/fontCourier7x13b.d" "Grlib/fonts/fontFixed7x13.d" "Grlib/fonts/fontLucidabright6x12.d" "Grlib/fonts/fontLucidasans6x11.d" "Grlib/fonts/fontLucidasans8x15.d" "Grlib/fonts/fontcm12.d" "Grlib/fonts/fontcm12b.d" "Grlib/fonts/fontcm16.d" "Grlib/fonts/fontcmss12.d" "Grlib/fonts/fontcmtt12.d" "Grlib/fonts/fontfixed6x8.d" "Grlib/grlib/button.d" "Grlib/grlib/checkbox.d" "Grlib/grlib/circle.d" "Grlib/grlib/context.d" "Grlib/grlib/display.d" "Grlib/grlib/image.d" "Grlib/grlib/imageButton.d" "Grlib/grlib/line.d" "Grlib/grlib/radioButton.d" "Grlib/grlib/rectangle.d" "Grlib/grlib/string.d" "LcdDriver/lcd_driver.d" "LcdDriver/lower_driver.d" 
+	-$(RM) "Cactus.obj" "Cloud.obj" "CloudSmall.obj" "DinoChar.obj" "FinalProject.obj" "Ground.obj" "GroundBump.obj" "TinyDino.obj" "Grlib/fonts/fontClean5x8.obj" "Grlib/fonts/fontClean7x10.obj" "Grlib/fonts/fontCourier7x13.obj" "Grlib/fonts/fontCourier7x13b.obj" "Grlib/fonts/fontFixed7x13.obj" "Grlib/fonts/fontLucidabright6x12.obj" "Grlib/fonts/fontLucidasans6x11.obj" "Grlib/fonts/fontLucidasans8x15.obj" "Grlib/fonts/fontcm12.obj" "Grlib/fonts/fontcm12b.obj" "Grlib/fonts/fontcm16.obj" "Grlib/fonts/fontcmss12.obj" "Grlib/fonts/fontcmtt12.obj" "Grlib/fonts/fontfixed6x8.obj" "Grlib/grlib/button.obj" "Grlib/grlib/checkbox.obj" "Grlib/grlib/circle.obj" "Grlib/grlib/context.obj" "Grlib/grlib/display.obj" "Grlib/grlib/image.obj" "Grlib/grlib/imageButton.obj" "Grlib/grlib/line.obj" "Grlib/grlib/radioButton.obj" "Grlib/grlib/rectangle.obj" "Grlib/grlib/string.obj" "LcdDriver/lcd_driver.obj" "LcdDriver/lower_driver.obj" 
+	-$(RM) "Cactus.d" "Cloud.d" "CloudSmall.d" "DinoChar.d" "FinalProject.d" "Ground.d" "GroundBump.d" "TinyDino.d" "Grlib/fonts/fontClean5x8.d" "Grlib/fonts/fontClean7x10.d" "Grlib/fonts/fontCourier7x13.d" "Grlib/fonts/fontCourier7x13b.d" "Grlib/fonts/fontFixed7x13.d" "Grlib/fonts/fontLucidabright6x12.d" "Grlib/fonts/fontLucidasans6x11.d" "Grlib/fonts/fontLucidasans8x15.d" "Grlib/fonts/fontcm12.d" "Grlib/fonts/fontcm12b.d" "Grlib/fonts/fontcm16.d" "Grlib/fonts/fontcmss12.d" "Grlib/fonts/fontcmtt12.d" "Grlib/fonts/fontfixed6x8.d" "Grlib/grlib/button.d" "Grlib/grlib/checkbox.d" "Grlib/grlib/circle.d" "Grlib/grlib/context.d" "Grlib/grlib/display.d" "Grlib/grlib/image.d" "Grlib/grlib/imageButton.d" "Grlib/grlib/line.d" "Grlib/grlib/radioButton.d" "Grlib/grlib/rectangle.d" "Grlib/grlib/string.d" "LcdDriver/lcd_driver.d" "LcdDriver/lower_driver.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 
